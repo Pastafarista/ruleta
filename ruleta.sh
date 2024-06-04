@@ -26,6 +26,7 @@ trap ctrl_c INT
 
 # Variables globales
 verbose=false
+line_break=false
 
 # Función de ayuda
 function help() {
@@ -67,14 +68,14 @@ function martingala() {
         # Aumentar el número de jugadas
         let jugadas++
 
-        # Apostar
-        dinero=$((dinero - apuesta_cantidad))
-    
         # Mostrar dinero restante y cantidad apostada
         if [ $verbose == true ]; then
             echo -e "${GRAY}Dinero restante:${NC} ${YELLOW}$dinero€${NC}"
             echo -e "${GRAY}Apostando${NC} ${YELLOW}$apuesta_cantidad€${NC}\n"
         fi
+
+        # Apostar
+        dinero=$((dinero - apuesta_cantidad))
         
         # Tirar la ruleta
         resultado=$((RANDOM % 37))
@@ -112,9 +113,6 @@ function martingala() {
         fi
     done
 
-    # Mostrar número de jugadas
-    echo -e "${GRAY}\nNúmero de jugadas:${NC} ${YELLOW}$jugadas${NC}"
-
     # Si hemos perdido
     if [ $exito == false ]; then
         
@@ -128,6 +126,9 @@ function martingala() {
     else
         echo -e "${GREEN}Has ganado${NC} ${LIGHT_GREEN}${apuesta_inicial}€${NC}"
     fi
+
+    # Mostrar número de jugadas
+    echo -e "${GRAY}Número de jugadas:${NC} ${YELLOW}$jugadas${NC}"
 
     # Mostrar dinero actual
     echo -e "${GRAY}Dinero actual:${NC} ${YELLOW}$dinero€${NC}"
@@ -177,6 +178,11 @@ done
 
 # Mostrar logo
 logo
+
+# Si están todas las condiciones correctas
+if [ $dinero ] && [ $apuesta_inicial ] && [ $apuesta ] && [ $tecnica ]; then
+    line_break=true
+fi
 
 # Si no se ha indicado el dinero preguntar
 if [ -z $dinero ]; then
@@ -236,6 +242,11 @@ fi
 
 # Convertir técnica a minúsculas
 tecnica=$(echo $tecnica | tr '[:upper:]' '[:lower:]')
+
+# Hacer salto de línea si no se preguntó por ningún parámetro
+if [ $line_break == true ]; then
+    echo ""
+fi
 
 # Validar técnica
 if [[ $tecnica == martingala ]]; then
