@@ -20,7 +20,7 @@ function ctrl_c() {
 }
 
 # Array con las técnicas disponibles
-tecnicas=("Martingala" "Inverse")
+tecnicas=("Martingala" "InverseLabrouchere")
 
 trap ctrl_c INT
 
@@ -47,6 +47,25 @@ function help() {
 
 # Función de la técnica martingala
 function martingala() {
+
+    # Si no se ha indicado la apuesta inicial preguntar
+    if [ -z $apuesta_inicial ]; then
+        echo -n "Apuesta inicial: "
+        read apuesta_inicial
+    fi
+
+    # Validar apuesta inicial
+    if ! [[ $apuesta_inicial =~ ^[0-9]+$ ]]; then
+        echo -e "${RED}La apuesta inicial debe ser un número entero${NC}"
+        exit 1
+    fi
+
+    # Validar que la apuesta inicial no sea mayor que el dinero
+    if [ $apuesta_inicial -gt $dinero ]; then
+        echo -e "${RED}La apuesta inicial no puede ser mayor al dinero${NC}"
+        exit 1
+    fi
+
     # Indicar cantidad de apuesta a la cantidad inicial
     apuesta_cantidad=$apuesta_inicial
     
@@ -78,15 +97,15 @@ function martingala() {
         dinero=$((dinero - apuesta_cantidad))
         
         # Tirar la ruleta
-        resultado=$((RANDOM % 37))
+        tirada_ruleta=$((RANDOM % 37))
 
-        # Mostrar resultado
+        # Mostrar tirada_ruleta
         if [ $verbose == true ]; then
-            echo -e "${BLUE}Ha salido el${NC} ${TURQUOISE}$resultado${NC}"
+            echo -e "${BLUE}Ha salido el${NC} ${TURQUOISE}$tirada_ruleta${NC}"
         fi
 
         # Si ganamos
-        if [ $((resultado %2)) -eq $apuesta ] && [ $resultado -ne 0 ]; then
+        if [ $((tirada_ruleta %2)) -eq $apuesta ] && [ $tirada_ruleta -ne 0 ]; then
             # Aumentar el dinero
             dinero=$((dinero + apuesta_cantidad * 2))
             
@@ -109,7 +128,7 @@ function martingala() {
             fi
 
             # Guardar mala jugada
-            malas_jugadas+="${resultado} "
+            malas_jugadas+="${tirada_ruleta} "
         fi
     done
 
@@ -131,6 +150,115 @@ function martingala() {
     echo -e "${GRAY}Número de jugadas:${NC} ${YELLOW}$jugadas${NC}"
 
     # Mostrar dinero actual
+    echo -e "${GRAY}Dinero actual:${NC} ${YELLOW}$dinero€${NC}"
+}
+
+# Función de la técnica inverse labrouchere
+function inverse_labrouchere() {
+    # Secuencia inicial de la técnica
+    secuencia_inicial=(1 2 3 4)
+    
+    # Guardar dinero inicial
+    dinero_inicial=$dinero
+
+    # Meta de beneficio
+    meta=100
+
+    # Secuencia actual
+    secuencia=("${secuencia_inicial[@]}")
+    
+    # Variable para saber si hemos ganado
+    exito=false
+    
+    # Guardar la meta de dinero a alcanzar
+    dinero_meta=$((dinero_inicial + meta))
+
+    # Numero de jugadas
+    jugadas=0
+
+    # Mientras tengamos dinero
+    while [ $dinero -ge 0 ]; do
+
+        # Aumentar el número de jugadas
+        let jugadas++
+
+        # Tirada de la ruleta
+        tirada_ruleta=$((RANDOM % 37))
+        
+        # Si la secuencia tiene menos de dos elementos, reiniciar
+        if [ ${#secuencia[@]} -lt 2 ]; then
+            secuencia=("${secuencia_inicial[@]}")
+        fi
+
+        # Calcular apuesta
+        apuesta_cantidad=$(( ${secuencia[0]} + ${secuencia[-1]} ))
+        
+        # Si la apuesta es mayor que el dinero, salir
+        if [ $apuesta_cantidad -gt $dinero ]; then
+            break
+        fi
+
+        # Mostrar apuesta y dinero restante
+        if [ $verbose == true ]; then
+            echo -e "${GRAY}Tirada de la ruleta:${NC} ${BLUE}$tirada_ruleta${NC}"
+            echo -e "${GRAY}Apuesta:${NC} ${YELLOW}$apuesta_cantidad${NC}"
+            echo -e "${GRAY}Dinero restante:${NC} ${YELLOW}$dinero€${NC}"
+
+            # Mostrar secuencia
+            echo -ne "${GRAY}Secuencia: (${NC}"
+            for i in ${secuencia[@]}; do
+                echo -ne "${YELLOW}$i${NC}"
+
+                if [ $i -ne ${secuencia[-1]} ]; then
+                    echo -ne "${GRAY}, ${NC}"
+                fi
+            done
+            echo -e "${GRAY})${NC}"
+        fi
+            # Si ganamos
+        if [ $((tirada_ruleta %2)) -eq $apuesta ] && [ $tirada_ruleta -ne 0 ]; then 
+            # Añadir la apuesta a la secuencia
+            secuencia+=($apuesta_cantidad)
+
+            # Aumentar el dinero
+            let dinero+=$apuesta_cantidad
+
+            # Mostrar mensaje
+            if [ $verbose == true ]; then
+                echo -e "${GREEN}Ganamos!${NC}\n"
+            fi
+        else
+            # Eliminar el primer y último elemento de la secuencia
+            secuencia=(${secuencia[@]:1:$((${#secuencia[@]}-2))})
+
+            # Restar la apuesta al dinero
+            let dinero-=$apuesta_cantidad
+
+            # Mostrar mensaje
+            if [ $verbose == true ]; then
+                echo -e "${RED}Perdimos!${NC}\n"
+            fi
+        fi
+
+        # Si ya hemos obtenido nuestro dinero de meta, salir
+        if [ $dinero -ge $dinero_meta ]; then
+            exito=true
+            break
+        fi
+    done
+
+    # Si hemos perdido
+    if [ $exito == false ]; then
+        dinero_perdido=$((dinero_inicial - dinero))
+        echo -e "${RED}Ya no se puede apostar más${NC}"
+        echo -e "${RED}Has perdido${NC} ${LIGHT_RED}$dinero_perdido€${NC}"
+    else
+        dinero_ganado=$((dinero - dinero_inicial))
+        echo -e "${GREEN}Has ganado${NC} ${LIGHT_GREEN}$dinero_ganado€${NC}"
+    fi
+
+    # Mostrar número de jugadas y dinero actual
+    echo -e "${GRAY}Número de jugadas:${NC} ${YELLOW}$jugadas${NC}"
     echo -e "${GRAY}Dinero actual:${NC} ${YELLOW}$dinero€${NC}"
 }
 
@@ -196,24 +324,6 @@ if ! [[ $dinero =~ ^[0-9]+$ ]]; then
     exit 1
 fi
 
-# Si no se ha indicado la apuesta inicial preguntar
-if [ -z $apuesta_inicial ]; then
-    echo -n "Apuesta inicial: "
-    read apuesta_inicial
-fi
-
-# Validar apuesta inicial
-if ! [[ $apuesta_inicial =~ ^[0-9]+$ ]]; then
-    echo -e "${RED}La apuesta inicial debe ser un número entero${NC}"
-    exit 1
-fi
-
-# Validar que la apuesta inicial no sea mayor que el dinero
-if [ $apuesta_inicial -gt $dinero ]; then
-    echo -e "${RED}La apuesta inicial no puede ser mayor al dinero${NC}"
-    exit 1
-fi
-
 # Si no se ha indicado la apuesta preguntar
 if [ -z $apuesta ]; then
     echo -n "Apuesta (par, impar): "
@@ -251,6 +361,8 @@ fi
 # Validar técnica
 if [[ $tecnica == martingala ]]; then
     martingala
+elif [[ $tecnica == inverselabrouchere ]]; then
+    inverse_labrouchere
 else
     echo -e "${RED}Técnica no válida${NC}"
     echo -e "${RED}Las opciones válidas son:${NC}"
