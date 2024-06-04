@@ -185,14 +185,15 @@ function inverse_labrouchere() {
         # Tirada de la ruleta
         tirada_ruleta=$((RANDOM % 37))
         
-        # Si la secuencia tiene menos de dos elementos, reiniciar
-        if [ ${#secuencia[@]} -lt 2 ]; then
-            secuencia=("${secuencia_inicial[@]}")
+        # Calcular la apuesta
+        if [ ${#secuencia[@]} -eq 1 ]; then
+            # Si solo hay un elemento en la secuencia
+            apuesta_cantidad=${secuencia[0]}
+        else
+            # Si hay más de un elemento en la secuencia
+            apuesta_cantidad=$(( ${secuencia[0]} + ${secuencia[-1]} ))
         fi
 
-        # Calcular apuesta
-        apuesta_cantidad=$(( ${secuencia[0]} + ${secuencia[-1]} ))
-        
         # Si la apuesta es mayor que el dinero, salir
         if [ $apuesta_cantidad -gt $dinero ]; then
             break
@@ -206,13 +207,19 @@ function inverse_labrouchere() {
 
             # Mostrar secuencia
             echo -ne "${GRAY}Secuencia: (${NC}"
-            for i in ${secuencia[@]}; do
-                echo -ne "${YELLOW}$i${NC}"
-
-                if [ $i -ne ${secuencia[-1]} ]; then
+            for (( i=0; i<$((${#secuencia[@]})); i++ )); do
+                elemento=${secuencia[$i]}
+                
+                # Mostrar el elemento
+                echo -ne "${YELLOW}${elemento}${NC}"
+                
+                # Si no es el último elemento, mostrar coma
+                if [ $i -ne $((${#secuencia[@]} - 1)) ]; then
                     echo -ne "${GRAY}, ${NC}"
                 fi
             done
+
+            # Cerrar paréntesis
             echo -e "${GRAY})${NC}"
         fi
             # Si ganamos
@@ -229,7 +236,13 @@ function inverse_labrouchere() {
             fi
         else
             # Eliminar el primer y último elemento de la secuencia
-            secuencia=(${secuencia[@]:1:$((${#secuencia[@]}-2))})
+            if [ ${#secuencia[@]} -eq 1 ] || [ ${#secuencia[@]} -eq 2 ] ; then
+                # Si solo hay uno o dos elementos en la secuencia, reiniciar la secuencia
+                secuencia=("${secuencia_inicial[@]}")
+            else
+                # Si hay más de dos elementos en la secuencia, eliminar el primer y último elemento
+                secuencia=(${secuencia[@]:1:$((${#secuencia[@]}-2))})
+            fi
 
             # Restar la apuesta al dinero
             let dinero-=$apuesta_cantidad
